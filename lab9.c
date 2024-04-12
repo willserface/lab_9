@@ -9,7 +9,7 @@
 #include <stdio.h> // Standard Input/Output Library
 #include <stdlib.h> // Standard Utilities Library
 
-#define HASH_MOD 26 // Modulo for Hash Function
+#define HASH_SIZE 9 // Modulo for Hash Function
 
 // RecordType
 struct RecordType {
@@ -26,7 +26,7 @@ struct HashType {
 
 // Compute the hash function
 int hash(int x) {
-    return x % HASH_MOD; // Returns x mod HASH_MOD
+    return x % HASH_SIZE; // Returns x mod HASH_SIZE
 }
 
 // parses input file to an integer array
@@ -72,55 +72,20 @@ void printRecords(struct RecordType pData[], int dataSz) {
     printf("\n\n");
 }
 
-int iSqRt(int x) {
-    switch (x) {
-        case 0:
-            return 0;
-        case 1:
-            return 1;
-        case 4:
-            return 2;
-        case 9:
-            return 3;
-        case 16:
-            return 4;
-        case 25:
-            return 5;
-        case 36:
-            return 6;
-        case 49:
-            return 7;
-        case 64:
-            return 8;
-        case 81:
-            return 9;
-        case 100:
-            return 10;
-        case 121:
-            return 11;
-        case 144:
-            return 12;
-        case 169:
-            return 13;
-        default:
-            return -1;
-    }
-}
-
 // display records in the hash structure
 // skip the indices which are free
 // the output will be in the format:
 // index x -> id, name, order -> id, name, order ....
 void displayRecordsInHash(struct HashType *pHashArray, int hashSz) {
     int i;
-    printf("Hash Table:\n%5s | %5s | %5s | %5s | %5s | %5s\n%s\n", "INDEX", "HASH", "DELTA", "ID", "CHAR", "ORDER",
-           "------+-------+-------+-------+-------+------"); // Print Header
+    printf("Hash Table:\n"); // Print Header
     for (i = 0; i < hashSz; ++i) {
-        if (pHashArray->records[i] != NULL) { // Check if Entry is NULL
-            struct RecordType entry = *pHashArray->records[i]; // Current Entry
-            printf("%5d | %5d | %3d^2 | %5d | %5c | %5d\n", i, hash(entry.id), iSqRt(i - hash(entry.id)),
-                   entry.id, entry.name, entry.order); // Print Hash Index and Entry
-        } else printf("%5d |       |       |       | %5s |\n", i, "NULL"); // Print Hash Index and NULL
+        printf("Hash %d: {", i);
+        for (int j = 0; j < pHashArray[i].slots; ++j) {
+            struct RecordType entry = *pHashArray[i].records[j];
+            printf("[%d %c %d]%s", entry.id, entry.name, entry.order, (j + 1 == pHashArray[i].slots) ? "" : ", ");
+        }
+        printf("}\n");
     }
 }
 
@@ -128,7 +93,7 @@ void insertRecord(struct HashType *, struct RecordType *); // Insert a new Recor
 
 int main(void) {
     struct RecordType *pRecords;
-    int recordSz = 0;
+    int recordSz;
 
     recordSz = parseData("input.txt", &pRecords);
     printRecords(pRecords, recordSz);
@@ -136,16 +101,16 @@ int main(void) {
     // Will Serface's Hash Table Implementation
 
     // Main Table for Hashes
-    struct HashType hashTable = {0, calloc(0, 0)};
+    struct HashType hashTable[HASH_SIZE] = {};
 
     // Add all Records to Hash Table
-    for (int i = 0; i < recordSz; ++i) insertRecord(&hashTable, &pRecords[i]);
+    for (int i = 0; i < recordSz; ++i) insertRecord(hashTable, &pRecords[i]);
 
     // Display Hash Table
-    displayRecordsInHash(&hashTable, hashTable.slots);
+    displayRecordsInHash(hashTable, HASH_SIZE);
 
     // Free Dynamically Allocated Memory
-    free(hashTable.records);
+    for (int i = 0; i < HASH_SIZE; ++i) free(hashTable[i].records);
     free(pRecords);
 
     // Successful Exit
@@ -153,18 +118,7 @@ int main(void) {
 }
 
 void insertRecord(struct HashType *table, struct RecordType *record) {
-    int recordHash = hash(record->id), // Hash of current Record
-    index, // Index to insert Record into Hash Table
-    i = 0; // Loop Counter
-    do {
-        index = recordHash + i * i;
-        i++;
-    } while (index < table->slots && table->records[index] != NULL);
-    if (index + 1 >= table->slots) {
-        int copy = table->slots; // Index to copy table to
-        table->slots = index + 1; // Update number of Slots in Hash Table
-        table->records = realloc(table->records, (table->slots) * sizeof(struct RecordType *));
-        for (i = copy; i < table->slots; ++i) table->records[i] = NULL;
-    }
-    table->records[index] = record;
+    int index = hash(record->id);
+    table[index].records = realloc(table[index].records, ((table[index].slots) + 1) * sizeof(struct RecordType *));
+    table[index].records[table[index].slots++] = record;
 }
